@@ -21,6 +21,7 @@ from app.modules.orders.router import (
     invoices_router, shipments_router,
     checkout_router, admin_router,
 )
+from app.modules.dashboard.router import router as dashboard_router
 
 Base.metadata.create_all(bind=engine)
 
@@ -61,6 +62,7 @@ app.include_router(checkout_router)
 app.include_router(invoices_router)
 app.include_router(shipments_router)
 app.include_router(admin_router)
+app.include_router(dashboard_router)
 
 
 @app.get("/")

@@ -1,3 +1,4 @@
+import math
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
 from app.modules.inventory.repository import InventoryRepository
@@ -8,8 +9,14 @@ class InventoryService:
     def __init__(self, db: Session):
         self.repo = InventoryRepository(db)
 
-    def list_inventory(self, skip: int = 0, limit: int = 100):
+    def list_inventory(self, skip: int = 0, limit: int | None = None):
         return self.repo.get_all(skip, limit)
+
+    def list_paginated(self, page: int, page_size: int, search: str = "", low_stock: bool = False) -> dict:
+        skip = (page - 1) * page_size
+        items, total = self.repo.get_paginated(skip, page_size, search, low_stock)
+        return {"items": items, "total": total, "page": page, "page_size": page_size,
+                "total_pages": max(1, math.ceil(total / page_size))}
 
     def get_inventory(self, inventory_id: int):
         inv = self.repo.get_by_id(inventory_id)

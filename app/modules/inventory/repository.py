@@ -1,4 +1,6 @@
+import math
 from datetime import datetime
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 from app.modules.inventory.models import BranchInventory
 from app.modules.users.models import Branch
@@ -8,8 +10,33 @@ class InventoryRepository:
     def __init__(self, db: Session):
         self.db = db
 
-    def get_all(self, skip: int = 0, limit: int = 100):
-        return self.db.query(BranchInventory).offset(skip).limit(limit).all()
+    def get_all(self, skip: int = 0, limit: int | None = None):
+        q = self.db.query(BranchInventory).offset(skip)
+        return q.limit(limit).all() if limit is not None else q.all()
+
+    def get_paginated(self, skip: int, limit: int, search: str = "", low_stock: bool = False) -> tuple[list, int]:
+        from app.modules.products.models import Product
+        q = self.db.query(BranchInventory, Product.name.label("product_name")).join(
+            Product, BranchInventory.product_id == Product.id
+        )
+        if search:
+            q = q.filter(or_(
+                Product.name.ilike(f"%{search}%"),
+                BranchInventory.product_id.ilike(f"%{search}%"),
+            ))
+        if low_stock:
+            q = q.filter(BranchInventory.min_stock > 0, BranchInventory.quantity <= BranchInventory.min_stock)
+        total = q.count()
+        rows = q.order_by(BranchInventory.id.asc()).offset(skip).limit(limit).all()
+        result = [
+            {
+                "id": inv.id, "product_id": inv.product_id, "product_name": pname or inv.product_id,
+                "branch_id": inv.branch_id, "quantity": inv.quantity, "min_stock": inv.min_stock,
+                "last_updated": inv.last_updated,
+            }
+            for inv, pname in rows
+        ]
+        return result, total
 
     def get_by_id(self, inventory_id: int):
         return self.db.query(BranchInventory).filter(BranchInventory.id == inventory_id).first()

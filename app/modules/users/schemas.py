@@ -67,3 +67,13 @@ class CustomerResponse(CustomerCreate):
 
     class Config:
         from_attributes = True
+
+
+from typing import List
+
+class PaginatedCustomers(BaseModel):
+    items: List[CustomerResponse]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int

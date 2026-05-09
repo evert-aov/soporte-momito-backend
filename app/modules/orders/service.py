@@ -1,3 +1,4 @@
+import math
 import httpx
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
@@ -26,8 +27,14 @@ class PurchaseOrderService:
         self.repo = PurchaseOrderRepository(db)
         self.inv_repo = InventoryRepository(db)
 
-    def list_orders(self, skip: int = 0, limit: int = 100):
+    def list_orders(self, skip: int = 0, limit: int | None = None):
         return self.repo.get_all(skip, limit)
+
+    def list_paginated(self, page: int, page_size: int, search: str = "", status: str = "") -> dict:
+        skip = (page - 1) * page_size
+        items, total = self.repo.get_paginated(skip, page_size, search, status)
+        return {"items": items, "total": total, "page": page, "page_size": page_size,
+                "total_pages": max(1, math.ceil(total / page_size))}
 
     def get_order(self, order_id: int):
         order = self.repo.get_by_id(order_id)
@@ -71,8 +78,14 @@ class SalesOrderService:
         self.invoice_repo = InvoiceRepository(db)
         self.inv_repo = InventoryRepository(db)
 
-    def list_orders(self, skip: int = 0, limit: int = 100):
+    def list_orders(self, skip: int = 0, limit: int | None = None):
         return self.repo.get_all(skip, limit)
+
+    def list_paginated(self, page: int, page_size: int, search: str = "", status: str = "", channel: str = "") -> dict:
+        skip = (page - 1) * page_size
+        items, total = self.repo.get_paginated(skip, page_size, search, status, channel)
+        return {"items": items, "total": total, "page": page, "page_size": page_size,
+                "total_pages": max(1, math.ceil(total / page_size))}
 
     def get_order(self, order_id: int):
         order = self.repo.get_by_id(order_id)
@@ -271,11 +284,22 @@ class InvoiceService:
     def __init__(self, db: Session):
         self.repo = InvoiceRepository(db)
 
-    def list_invoices(self, skip: int = 0, limit: int = 100):
+    def list_invoices(self, skip: int = 0, limit: int | None = None):
         return self.repo.get_all(skip, limit)
 
-    def list_invoices_for_user(self, user_id: int, customer_id: int | None, skip: int = 0, limit: int = 100):
+    def list_invoices_for_user(self, user_id: int, customer_id: int | None, skip: int = 0, limit: int | None = None):
         return self.repo.get_all_for_user(user_id, customer_id, skip, limit)
+
+    def list_paginated(self, page: int, page_size: int, search: str = "",
+                       user_id: int | None = None, customer_id: int | None = None,
+                       is_seller: bool = True) -> dict:
+        skip = (page - 1) * page_size
+        if is_seller:
+            items, total = self.repo.get_paginated(skip, page_size, search)
+        else:
+            items, total = self.repo.get_paginated_for_user(user_id, customer_id, skip, page_size, search)
+        return {"items": items, "total": total, "page": page, "page_size": page_size,
+                "total_pages": max(1, math.ceil(total / page_size))}
 
     def get_invoice(self, invoice_id: int):
         inv = self.repo.get_by_id(invoice_id)
@@ -297,8 +321,14 @@ class ShipmentService:
     def __init__(self, db: Session):
         self.repo = ShipmentRepository(db)
 
-    def list_shipments(self, skip: int = 0, limit: int = 100):
+    def list_shipments(self, skip: int = 0, limit: int | None = None):
         return self.repo.get_all(skip, limit)
+
+    def list_paginated(self, page: int, page_size: int, search: str = "", status: str = "") -> dict:
+        skip = (page - 1) * page_size
+        items, total = self.repo.get_paginated(skip, page_size, search, status)
+        return {"items": items, "total": total, "page": page, "page_size": page_size,
+                "total_pages": max(1, math.ceil(total / page_size))}
 
     def get_shipment(self, shipment_id: int):
         ship = self.repo.get_by_id(shipment_id)

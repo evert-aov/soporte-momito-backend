@@ -1,3 +1,5 @@
+import math
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 from app.modules.products.models import Product, ProductCategory, Supplier
 
@@ -6,8 +8,27 @@ class ProductRepository:
     def __init__(self, db: Session):
         self.db = db
 
-    def get_all(self, skip: int = 0, limit: int = 100):
-        return self.db.query(Product).filter(Product.active == True).offset(skip).limit(limit).all()
+    def get_all(self, skip: int = 0, limit: int | None = None):
+        q = self.db.query(Product).filter(Product.active == True).offset(skip)
+        return q.limit(limit).all() if limit is not None else q.all()
+
+    def get_paginated(self, skip: int, limit: int, search: str = "", low_stock: bool = False) -> tuple[list, int]:
+        from app.modules.inventory.models import BranchInventory
+        q = self.db.query(Product).filter(Product.active.is_(True))
+        if search:
+            q = q.filter(or_(
+                Product.name.ilike(f"%{search}%"),
+                Product.default_code.ilike(f"%{search}%"),
+            ))
+        if low_stock:
+            low_subq = (
+                self.db.query(BranchInventory.product_id)
+                .filter(BranchInventory.min_stock > 0, BranchInventory.quantity <= BranchInventory.min_stock)
+                .subquery()
+            )
+            q = q.filter(Product.id.in_(low_subq))
+        total = q.count()
+        return q.order_by(Product.name.asc()).offset(skip).limit(limit).all(), total
 
     def get_by_id(self, product_id: str):
         return self.db.query(Product).filter(Product.id == product_id).first()

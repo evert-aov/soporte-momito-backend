@@ -1,6 +1,8 @@
 import os
+import math
 from datetime import datetime
 from decimal import Decimal
+from sqlalchemy import cast, String as SAString, or_
 from sqlalchemy.orm import Session
 from app.modules.orders.models import (
     PurchaseOrder, PurchaseOrderLine,
@@ -13,8 +15,18 @@ class PurchaseOrderRepository:
     def __init__(self, db: Session):
         self.db = db
 
-    def get_all(self, skip: int = 0, limit: int = 100):
-        return self.db.query(PurchaseOrder).offset(skip).limit(limit).all()
+    def get_all(self, skip: int = 0, limit: int | None = None):
+        q = self.db.query(PurchaseOrder).offset(skip)
+        return q.limit(limit).all() if limit is not None else q.all()
+
+    def get_paginated(self, skip: int, limit: int, search: str = "", status: str = "") -> tuple[list, int]:
+        q = self.db.query(PurchaseOrder).order_by(PurchaseOrder.id.desc())
+        if search:
+            q = q.filter(cast(PurchaseOrder.id, SAString).contains(search))
+        if status:
+            q = q.filter(PurchaseOrder.status == status)
+        total = q.count()
+        return q.offset(skip).limit(limit).all(), total
 
     def get_by_id(self, order_id: int):
         return self.db.query(PurchaseOrder).filter(PurchaseOrder.id == order_id).first()
@@ -60,8 +72,25 @@ class SalesOrderRepository:
     def __init__(self, db: Session):
         self.db = db
 
-    def get_all(self, skip: int = 0, limit: int = 100):
-        return self.db.query(SalesOrder).offset(skip).limit(limit).all()
+    def get_all(self, skip: int = 0, limit: int | None = None):
+        q = self.db.query(SalesOrder).offset(skip)
+        return q.limit(limit).all() if limit is not None else q.all()
+
+    def get_paginated(self, skip: int, limit: int, search: str = "", status: str = "", channel: str = "") -> tuple[list, int]:
+        q = self.db.query(SalesOrder).order_by(SalesOrder.id.desc())
+        if search:
+            q = q.filter(or_(
+                cast(SalesOrder.id, SAString).contains(search),
+                SalesOrder.guest_email.ilike(f"%{search}%"),
+            ))
+        if status:
+            q = q.filter(SalesOrder.status == status)
+        if channel == "ecommerce":
+            q = q.filter(SalesOrder.source_channel == "ecommerce")
+        elif channel == "presencial":
+            q = q.filter(SalesOrder.source_channel != "ecommerce")
+        total = q.count()
+        return q.offset(skip).limit(limit).all(), total
 
     def get_by_id(self, order_id: int):
         return self.db.query(SalesOrder).filter(SalesOrder.id == order_id).first()
@@ -128,21 +157,46 @@ class InvoiceRepository:
     def __init__(self, db: Session):
         self.db = db
 
-    def get_all(self, skip: int = 0, limit: int = 100):
-        return self.db.query(Invoice).offset(skip).limit(limit).all()
+    def get_all(self, skip: int = 0, limit: int | None = None):
+        q = self.db.query(Invoice).offset(skip)
+        return q.limit(limit).all() if limit is not None else q.all()
 
-    def get_all_for_user(self, user_id: int, customer_id: int | None, skip: int = 0, limit: int = 100):
+    def get_paginated(self, skip: int, limit: int, search: str = "") -> tuple[list, int]:
+        q = self.db.query(Invoice).order_by(Invoice.id.desc())
+        if search:
+            q = q.filter(Invoice.invoice_number.ilike(f"%{search}%"))
+        total = q.count()
+        return q.offset(skip).limit(limit).all(), total
+
+    def get_paginated_for_user(self, user_id: int, customer_id: int | None, skip: int, limit: int, search: str = "") -> tuple[list, int]:
+        from sqlalchemy import or_
+        conditions = [SalesOrder.user_id == user_id]
+        if customer_id:
+            conditions.append(SalesOrder.customer_id == customer_id)
+        q = (
+            self.db.query(Invoice)
+            .join(SalesOrder, Invoice.sales_order_id == SalesOrder.id)
+            .filter(or_(*conditions))
+            .order_by(Invoice.id.desc())
+        )
+        if search:
+            q = q.filter(Invoice.invoice_number.ilike(f"%{search}%"))
+        total = q.count()
+        return q.offset(skip).limit(limit).all(), total
+
+    def get_all_for_user(self, user_id: int, customer_id: int | None, skip: int = 0, limit: int | None = None):
         from app.modules.orders.models import SalesOrder
         from sqlalchemy import or_
         conditions = [SalesOrder.user_id == user_id]
         if customer_id:
             conditions.append(SalesOrder.customer_id == customer_id)
-        return (
+        q = (
             self.db.query(Invoice)
             .join(SalesOrder, Invoice.sales_order_id == SalesOrder.id)
             .filter(or_(*conditions))
-            .offset(skip).limit(limit).all()
+            .offset(skip)
         )
+        return q.limit(limit).all() if limit is not None else q.all()
 
     def get_by_id(self, invoice_id: int):
         return self.db.query(Invoice).filter(Invoice.id == invoice_id).first()
@@ -399,8 +453,18 @@ class ShipmentRepository:
     def __init__(self, db: Session):
         self.db = db
 
-    def get_all(self, skip: int = 0, limit: int = 100):
-        return self.db.query(Shipment).offset(skip).limit(limit).all()
+    def get_all(self, skip: int = 0, limit: int | None = None):
+        q = self.db.query(Shipment).offset(skip)
+        return q.limit(limit).all() if limit is not None else q.all()
+
+    def get_paginated(self, skip: int, limit: int, search: str = "", status: str = "") -> tuple[list, int]:
+        q = self.db.query(Shipment).order_by(Shipment.id.desc())
+        if search:
+            q = q.filter(Shipment.tracking_number.ilike(f"%{search}%"))
+        if status:
+            q = q.filter(Shipment.delivery_status == status)
+        total = q.count()
+        return q.offset(skip).limit(limit).all(), total
 
     def get_by_id(self, shipment_id: int):
         return self.db.query(Shipment).filter(Shipment.id == shipment_id).first()

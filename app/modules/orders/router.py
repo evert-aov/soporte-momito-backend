@@ -14,6 +14,7 @@ from app.modules.orders.schemas import (
     PaymentSettingsResponse, PaymentSettingsUpdate,
     VerifyPasswordRequest, VerifyPasswordResponse,
     CompanyInfoResponse, CompanyInfoUpdate,
+    PaginatedPurchaseOrders, PaginatedSalesOrders, PaginatedInvoices, PaginatedShipments,
 )
 from app.modules.orders.service import (
     PurchaseOrderService, SalesOrderService,
@@ -31,10 +32,10 @@ from app.core.dependencies import (
 purchase_router = APIRouter(prefix="/api/purchase-orders", tags=["purchase-orders"])
 
 
-@purchase_router.get("/", response_model=List[PurchaseOrderDetailResponse])
-def list_purchase_orders(skip: int = 0, limit: int = 100, db: Session = Depends(get_db),
-                         current_user=Depends(require_seller)):
-    return PurchaseOrderService(db).list_orders(skip, limit)
+@purchase_router.get("/", response_model=PaginatedPurchaseOrders)
+def list_purchase_orders(page: int = 1, page_size: int = 20, search: str = "", status: str = "",
+                         db: Session = Depends(get_db), current_user=Depends(require_seller)):
+    return PurchaseOrderService(db).list_paginated(page, page_size, search, status)
 
 
 @purchase_router.get("/{order_id}", response_model=PurchaseOrderDetailResponse)
@@ -72,10 +73,10 @@ def cancel_purchase_order(order_id: int, db: Session = Depends(get_db),
 sales_router = APIRouter(prefix="/api/sales-orders", tags=["sales-orders"])
 
 
-@sales_router.get("/", response_model=List[SalesOrderDetailResponse])
-def list_sales_orders(skip: int = 0, limit: int = 100, db: Session = Depends(get_db),
-                      current_user=Depends(require_seller)):
-    return SalesOrderService(db).list_orders(skip, limit)
+@sales_router.get("/", response_model=PaginatedSalesOrders)
+def list_sales_orders(page: int = 1, page_size: int = 20, search: str = "", status: str = "", channel: str = "",
+                      db: Session = Depends(get_db), current_user=Depends(require_seller)):
+    return SalesOrderService(db).list_paginated(page, page_size, search, status, channel)
 
 
 @sales_router.get("/{order_id}", response_model=SalesOrderDetailResponse)
@@ -185,14 +186,16 @@ def _resolve_invoice(invoice_id: int, current_user, db: Session):
     )
 
 
-@invoices_router.get("/", response_model=List[InvoiceResponse])
-def list_invoices(skip: int = 0, limit: int = 100, db: Session = Depends(get_db),
-                  current_user=Depends(get_current_user)):
+@invoices_router.get("/", response_model=PaginatedInvoices)
+def list_invoices(page: int = 1, page_size: int = 20, search: str = "",
+                  db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     svc = InvoiceService(db)
-    if is_seller_or_above(current_user):
-        return svc.list_invoices(skip, limit)
-    return svc.list_invoices_for_user(
-        current_user.id, getattr(current_user, "customer_id", None), skip, limit
+    seller = is_seller_or_above(current_user)
+    return svc.list_paginated(
+        page, page_size, search,
+        user_id=current_user.id,
+        customer_id=getattr(current_user, "customer_id", None),
+        is_seller=seller,
     )
 
 
@@ -243,10 +246,10 @@ def get_invoice_xml(invoice_id: int, db: Session = Depends(get_db),
 shipments_router = APIRouter(prefix="/api/shipments", tags=["shipments"])
 
 
-@shipments_router.get("/", response_model=List[ShipmentResponse])
-def list_shipments(skip: int = 0, limit: int = 100, db: Session = Depends(get_db),
-                   current_user=Depends(require_seller)):
-    return ShipmentService(db).list_shipments(skip, limit)
+@shipments_router.get("/", response_model=PaginatedShipments)
+def list_shipments(page: int = 1, page_size: int = 20, search: str = "", status: str = "",
+                   db: Session = Depends(get_db), current_user=Depends(require_seller)):
+    return ShipmentService(db).list_paginated(page, page_size, search, status)
 
 
 @shipments_router.get("/{shipment_id}", response_model=ShipmentResponse)

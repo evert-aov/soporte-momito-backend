@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from typing import List
 from database import get_db
-from app.modules.users.schemas import UserCreate, UserResponse, UserUpdate, RoleCreate, RoleUpdate, RoleResponse, CustomerCreate, CustomerResponse
+from app.modules.users.schemas import UserCreate, UserResponse, UserUpdate, RoleCreate, RoleUpdate, RoleResponse, CustomerCreate, CustomerResponse, PaginatedCustomers
 from app.modules.users.service import UserService, RoleService, CustomerService
 from app.core.dependencies import require_admin
 
@@ -10,7 +10,7 @@ router = APIRouter(prefix="/api/users", tags=["users"])
 
 
 @router.get("/", response_model=List[UserResponse])
-def list_users(skip: int = 0, limit: int = 100, db: Session = Depends(get_db),
+def list_users(skip: int = 0, limit: int | None = None, db: Session = Depends(get_db),
                current_user=Depends(require_admin)):
     return UserService(db).list_users(skip, limit)
 
@@ -70,10 +70,10 @@ def delete_role(role_id: int, db: Session = Depends(get_db), current_user=Depend
 customers_router = APIRouter(prefix="/api/customers", tags=["customers"])
 
 
-@customers_router.get("/", response_model=List[CustomerResponse])
-def list_customers(skip: int = 0, limit: int = 100, db: Session = Depends(get_db),
-                   current_user=Depends(require_admin)):
-    return CustomerService(db).list_customers(skip, limit)
+@customers_router.get("/", response_model=PaginatedCustomers)
+def list_customers(page: int = 1, page_size: int = 20, search: str = "",
+                   db: Session = Depends(get_db), current_user=Depends(require_admin)):
+    return CustomerService(db).list_paginated(page, page_size, search)
 
 
 @customers_router.get("/{customer_id}", response_model=CustomerResponse)

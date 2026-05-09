@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
 from decimal import Decimal
 
 
@@ -71,3 +71,11 @@ class SupplierResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class PaginatedProducts(BaseModel):
+    items: List[ProductResponse]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int

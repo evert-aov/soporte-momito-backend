@@ -9,7 +9,7 @@ class UserService:
     def __init__(self, db: Session):
         self.repo = UserRepository(db)
 
-    def list_users(self, skip: int = 0, limit: int = 100):
+    def list_users(self, skip: int = 0, limit: int | None = None):
         return self.repo.get_all(skip, limit)
 
     def get_user(self, user_id: int):
@@ -70,8 +70,15 @@ class CustomerService:
     def __init__(self, db: Session):
         self.repo = CustomerRepository(db)
 
-    def list_customers(self, skip: int = 0, limit: int = 100):
+    def list_customers(self, skip: int = 0, limit: int | None = None):
         return self.repo.get_all(skip, limit)
+
+    def list_paginated(self, page: int, page_size: int, search: str = "") -> dict:
+        import math
+        skip = (page - 1) * page_size
+        items, total = self.repo.get_paginated(skip, page_size, search)
+        return {"items": items, "total": total, "page": page, "page_size": page_size,
+                "total_pages": max(1, math.ceil(total / page_size))}
 
     def get_customer(self, customer_id: int):
         customer = self.repo.get_by_id(customer_id)

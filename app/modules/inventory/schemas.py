@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime
 
 
@@ -25,3 +25,21 @@ class InventoryResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class InventoryWithNameResponse(BaseModel):
+    id: int
+    product_id: str
+    product_name: str
+    branch_id: Optional[int] = None
+    quantity: int
+    min_stock: int
+    last_updated: Optional[datetime] = None
+
+
+class PaginatedInventory(BaseModel):
+    items: List[InventoryWithNameResponse]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int

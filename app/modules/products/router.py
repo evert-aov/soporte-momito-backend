@@ -5,7 +5,7 @@ from database import get_db
 from app.modules.products.schemas import (
     ProductCreate, ProductResponse, ProductUpdate,
     CategoryCreate, CategoryUpdate, CategoryResponse,
-    SupplierCreate, SupplierResponse
+    SupplierCreate, SupplierResponse, PaginatedProducts,
 )
 from app.modules.products.service import ProductService, CategoryService, SupplierService
 from app.core.dependencies import require_seller
@@ -13,9 +13,10 @@ from app.core.dependencies import require_seller
 router = APIRouter(prefix="/api/products", tags=["products"])
 
 
-@router.get("/", response_model=List[ProductResponse])
-def list_products(skip: int = 0, limit: int = 200, db: Session = Depends(get_db)):
-    return ProductService(db).list_products(skip, limit)
+@router.get("/", response_model=PaginatedProducts)
+def list_products(page: int = 1, page_size: int = 20, search: str = "", low_stock: bool = False,
+                  db: Session = Depends(get_db)):
+    return ProductService(db).list_paginated(page, page_size, search, low_stock)
 
 
 @router.get("/{product_id}", response_model=ProductResponse)

@@ -243,3 +243,37 @@ class VerifyPasswordRequest(BaseModel):
 class VerifyPasswordResponse(BaseModel):
     valid: bool
     access_granted: bool
+
+
+# --- Paginated responses ---
+
+class PaginatedPurchaseOrders(BaseModel):
+    items: List[PurchaseOrderDetailResponse]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int
+
+
+class PaginatedSalesOrders(BaseModel):
+    items: List[SalesOrderDetailResponse]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int
+
+
+class PaginatedInvoices(BaseModel):
+    items: List[InvoiceResponse]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int
+
+
+class PaginatedShipments(BaseModel):
+    items: List[ShipmentResponse]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int

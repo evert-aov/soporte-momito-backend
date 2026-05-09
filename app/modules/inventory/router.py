@@ -2,17 +2,17 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from typing import List
 from database import get_db
-from app.modules.inventory.schemas import InventoryCreate, InventoryResponse, InventoryUpdate
+from app.modules.inventory.schemas import InventoryCreate, InventoryResponse, InventoryUpdate, PaginatedInventory
 from app.modules.inventory.service import InventoryService
 from app.core.dependencies import require_seller
 
 router = APIRouter(prefix="/api/inventory", tags=["inventory"])
 
 
-@router.get("/", response_model=List[InventoryResponse])
-def list_inventory(skip: int = 0, limit: int = 100, db: Session = Depends(get_db),
-                   current_user=Depends(require_seller)):
-    return InventoryService(db).list_inventory(skip, limit)
+@router.get("/", response_model=PaginatedInventory)
+def list_inventory(page: int = 1, page_size: int = 20, search: str = "", low_stock: bool = False,
+                   db: Session = Depends(get_db), current_user=Depends(require_seller)):
+    return InventoryService(db).list_paginated(page, page_size, search, low_stock)
 
 
 @router.get("/{inventory_id}", response_model=InventoryResponse)
